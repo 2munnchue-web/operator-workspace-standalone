@@ -4,7 +4,11 @@
     "guideMode": "local",
     "showAdvanced": true,
     "safeMode": true,
-    "workspaceName": "Operator Workspace"
+    "workspaceName": "Operator Workspace",
+    "defaultScope": "Authorized isolated lab or explicitly approved exercise assets",
+    "guidePersona": "Practical, skeptical, scope-aware coach",
+    "guideMemory": "Keep answers connected to the current exercise, tool design, and learning goals.",
+    "guideHistory": []
   },
   "tools": [
     {
@@ -14,7 +18,11 @@
       "description": "Track approved assets, owners, sources, and scope state.",
       "enabled": true,
       "kind": "checklist",
-      "accent": "cyan"
+      "accent": "cyan",
+      "prerequisites": "Approved asset list",
+      "allowedScope": "Isolated or explicitly authorized assets",
+      "dryRun": true,
+      "launchContract": "Read-only inventory with evidence note"
     },
     {
       "id": "telemetry-review",
@@ -23,7 +31,11 @@
       "description": "Map signals to scenarios and document detection coverage.",
       "enabled": true,
       "kind": "workflow",
-      "accent": "amber"
+      "accent": "amber",
+      "prerequisites": "Telemetry source and scenario owner",
+      "allowedScope": "Authorized monitoring data",
+      "dryRun": true,
+      "launchContract": "Map signal → owner → response"
     },
     {
       "id": "lab-builder",
@@ -32,7 +44,11 @@
       "description": "Record isolated lab components, prerequisites, and reset steps.",
       "enabled": true,
       "kind": "workspace",
-      "accent": "violet"
+      "accent": "violet",
+      "prerequisites": "Isolated lab plan",
+      "allowedScope": "Local lab infrastructure",
+      "dryRun": true,
+      "launchContract": "Record build, reset, and validation steps"
     },
     {
       "id": "evidence-capture",
@@ -41,7 +57,11 @@
       "description": "Capture provenance, context, observations, and next actions.",
       "enabled": true,
       "kind": "record",
-      "accent": "rose"
+      "accent": "rose",
+      "prerequisites": "Source and timestamp",
+      "allowedScope": "Exercise or lab evidence",
+      "dryRun": true,
+      "launchContract": "Capture provenance and context"
     },
     {
       "id": "event-planner",
@@ -50,7 +70,11 @@
       "description": "Plan team lanes, scenarios, readiness, and White Cell controls.",
       "enabled": true,
       "kind": "event",
-      "accent": "green"
+      "accent": "green",
+      "prerequisites": "White Cell authorization",
+      "allowedScope": "Approved exercise scope",
+      "dryRun": true,
+      "launchContract": "Advance only through readiness gate"
     }
   ],
   "customTools": [],

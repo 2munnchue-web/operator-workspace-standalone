@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { copyFile, readFile } from "node:fs/promises";
+import { createAdapters } from "./adapters.mjs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -26,6 +27,15 @@ async function waitForHealth() {
 await copyFile(data, backup);
 try {
   await waitForHealth();
+  const previousDataPath = process.env.WORKSPACE_DATA_PATH;
+  delete process.env.WORKSPACE_DATA_PATH;
+  const fallbackAdapters = createAdapters({ mode: "production", dataPath: data, initialGuide: "fallback" });
+  const fallbackWorkspace = await fallbackAdapters.loadWorkspace();
+  assert.equal(fallbackAdapters.available.fallback, "local");
+  assert.equal(fallbackWorkspace.settings.workspaceName, "Operator Workspace");
+  if (previousDataPath === undefined) delete process.env.WORKSPACE_DATA_PATH;
+  else process.env.WORKSPACE_DATA_PATH = previousDataPath;
+
   const initial = await request("/api/workspace");
   assert.equal(initial.body.settings.guideMode, "local");
   assert.equal(initial.body.event.teams.length, 3);
@@ -44,6 +54,9 @@ try {
   const guide = await request("/api/guide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: "How should I plan a Red Blue event?" }) });
   assert.match(guide.body.content, /White Cell/);
   assert.equal(guide.body.mode, "local");
+  assert.equal(guide.body.history.at(-2).role, "user");
+  const restored = await request("/api/workspace");
+  assert.equal(restored.body.settings.guideHistory.at(-1).content, guide.body.content);
 
   const blocked = await request("/api/scenarios/scenario-1/status", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "Live" }) });
   assert.equal(blocked.response.status, 409);

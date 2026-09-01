@@ -4,20 +4,22 @@ import { existsSync } from "node:fs";
 import { extname, join, normalize, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getLocale } from "./locales.mjs";
+import { createAdapters } from "./adapters.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const dataPath = join(root, "data", "workspace.json");
 const publicDir = join(root, "public");
 const port = Number(process.env.PORT || 8787);
+const adapters = createAdapters({ dataPath, initialGuide: "Local guide available for workflow, event, tool design, and learning questions." });
 
 const mime = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml" };
 
 async function loadWorkspace() {
-  return JSON.parse(await readFile(dataPath, "utf8"));
+  return adapters.loadWorkspace();
 }
 
 async function saveWorkspace(workspace) {
-  await writeFile(dataPath, `${JSON.stringify(workspace, null, 2)}\n`, "utf8");
+  await adapters.saveWorkspace(workspace);
 }
 
 function sendJson(res, status, body) {
@@ -50,15 +52,15 @@ function guideAnswer(question, workspace) {
   if (lower.includes("tool") || lower.includes("build") || lower.includes("create")) {
     return "Use Creative Lab to define a tool name, purpose, category, inputs, and a repeatable runbook. Keep tool actions explicit and reviewable; start with read-only or simulation behavior, then add a clear authorization checkpoint before any higher-impact operation.";
   }
-  return "I can help structure your workspace, explain a security concept, plan a Red / Blue exercise, draft a checklist, design a tool card, or build a learning path. Tell me your goal, current scope, constraints, and what a successful result should look like.";
+  return `I can help structure your workspace, explain a security concept, plan a Red / Blue exercise, draft a checklist, design a tool card, or build a learning path. I’m acting as your ${workspace.settings.guidePersona || "scope-aware coach"}. Your saved default scope is: ${workspace.settings.defaultScope || "authorized work only"}. Tell me your goal, constraints, and what a successful result should look like.`;
 }
 
 async function handleApi(req, res, url) {
   const workspace = await loadWorkspace();
   const path = url.pathname;
   if (req.method === "GET" && path === "/api/workspace") return sendJson(res, 200, workspace);
-  if (req.method === "GET" && path === "/healthz") return sendJson(res, 200, { ok: true, mode: "standalone", storage: "local-json" });
-  if (req.method === "GET" && path === "/api/guide") return sendJson(res, 200, { content: "Local guide ready. Ask about your workflow, event, tool design, or learning path.", mode: workspace.settings.guideMode });
+  if (req.method === "GET" && path === "/healthz") return sendJson(res, 200, { ok: true, mode: "standalone", adapterMode: adapters.mode, storage: adapters.available.persistence, guide: adapters.available.guide });
+  if (req.method === "GET" && path === "/api/guide") return sendJson(res, 200, { content: adapters.guide.answer, mode: workspace.settings.guideMode });
 
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
   const body = await readBody(req);
@@ -78,7 +80,7 @@ async function handleApi(req, res, url) {
   if (path === "/api/tools/custom") {
     const name = String(body.name || "").trim();
     if (name.length < 3) return sendJson(res, 400, { error: "Tool name must be at least 3 characters" });
-    const tool = { id: `custom-${Date.now()}`, name, category: String(body.category || "Custom"), description: String(body.description || "User-designed tool card."), enabled: true, kind: "custom", accent: "cyan", fields: String(body.fields || ""), runbook: String(body.runbook || "") };
+    const tool = { id: `custom-${Date.now()}`, name, category: String(body.category || "Custom"), description: String(body.description || "User-designed tool card."), enabled: true, kind: "custom", accent: "cyan", prerequisites: String(body.prerequisites || "Define prerequisites"), allowedScope: String(body.allowedScope || "Authorized scope only"), dryRun: body.dryRun !== false, launchContract: String(body.launchContract || "Review scope before running"), fields: String(body.fields || ""), prompt: String(body.prompt || "Explain the next safe step for this tool."), runbook: String(body.runbook || "") };
     workspace.customTools.push(tool);
     await saveWorkspace(workspace);
     return sendJson(res, 201, tool);
@@ -86,7 +88,10 @@ async function handleApi(req, res, url) {
   if (path === "/api/guide") {
     const question = String(body.question || "").trim();
     if (!question) return sendJson(res, 400, { error: "Ask a question" });
-    return sendJson(res, 200, { content: guideAnswer(question, workspace), mode: workspace.settings.guideMode, safeMode: workspace.settings.safeMode });
+    const answer = guideAnswer(question, workspace);
+    workspace.settings.guideHistory = [...(workspace.settings.guideHistory || []), { role: "user", content: question }, { role: "assistant", content: answer }].slice(-20);
+    await saveWorkspace(workspace);
+    return sendJson(res, 200, { content: answer, mode: workspace.settings.guideMode, safeMode: workspace.settings.safeMode, history: workspace.settings.guideHistory });
   }
   if (path === "/api/scenarios") {
     const title = String(body.title || "").trim();

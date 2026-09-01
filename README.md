@@ -13,7 +13,7 @@ npm run test
 npm start
 ```
 
-Then open `http://localhost:8787`. To choose a different port, set `PORT`, for example `PORT=9000 npm start`. Workspace changes are stored in `data/workspace.json`, so this package is easy to back up, inspect, version, and move to another host.
+Then open `http://localhost:8787`. To choose a different port, set `PORT`, for example `PORT=9000 npm start`. Runtime adapters are selected with `WORKSPACE_MODE=local|mock|production`. Local mode writes `data/workspace.json`; mock mode keeps changes in memory for ephemeral runs; production mode reads and writes the file named by `WORKSPACE_DATA_PATH` and falls back to local JSON unless `WORKSPACE_FALLBACK_MODE=none` is set. Workspace changes are stored in `data/workspace.json` by default, so this package is easy to back up, inspect, version, and move to another host.
 
 ## Included GUI abilities
 
